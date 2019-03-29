@@ -20,23 +20,22 @@ def accuracy(matrix, weights):
 			total_correct+=1.0
 	return total_correct/float(len(matrix))
 
-def perceptron(matrix, weights, max_iteration, l_rate):
+def pocket_perceptron(matrix, weights, max_iteration, l_rate):
 	for iteration in range(max_iteration):
 		current_accuracy = accuracy(matrix, weights)
 
-		print("Accuracy at iteration %d: "%iteration, current_accuracy)
+		print("Accuracy: ", current_accuracy)
 
 		if current_accuracy == 1.0:
 			break
+
+
 
 		for i in range(len(matrix)):
 			prediction = predict(matrix[i][:-1],weights)
 			error = matrix[i][-1]-prediction
 			for j in range(len(weights)):
 				weights[j]=weights[j]+(l_rate*error*matrix[i][j])
-	
-	current_accuracy = accuracy(matrix, weights)
-	print("Final Accuracy: ", current_accuracy)
 
 	return weights
 
@@ -54,7 +53,7 @@ def main():
 			row.insert(0, 1)
 			rows.append(row)
 
-	a = perceptron(rows, w, 16, 1.0)
+	a = pocket_perceptron(rows, w, 10, 1.0)
 	print("Final Weights: ", a)
 
 if __name__ == '__main__':
