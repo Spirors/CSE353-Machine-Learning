@@ -4,6 +4,18 @@ import csv
 
 def main(): 
 
+	test1=	[	
+				[1,2,3,4,5,6],
+				[7,8,9,10,11,12],
+				[13,14,15,16,17,18]
+			]
+	a = np.array(test1)
+	b = a.transpose()
+	c = np.matmul(a,b)
+	print(c)
+	d = np.matmul(b,a)
+	print(d)
+
 	subset_0 = [] 
 	w0 = []
 	subset_1 = []
@@ -15,22 +27,9 @@ def main():
 			for i in range(len(row)): 
 				row[i] = float(row[i])
 			if row[-1] == 0:
-				del row[-1]
 				subset_0.append(row)
 			else:
-				del row[-1]
 				subset_1.append(row)
-
-	a = np.array(subset_0)
-	b = a.transpose()
-	A_0 = np.matmul(b, a)
-
-	c = np.array(subset_1)
-	d = c.transpose()
-	A_1 = np.matmul(d, c)
-
-
-
 
 if __name__ == '__main__':
 	main()

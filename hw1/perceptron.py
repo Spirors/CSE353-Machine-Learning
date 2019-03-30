@@ -1,5 +1,6 @@
 import numpy as np
 import csv
+import argparse
 
 #helper method for computing the condition that if the inner product is <= 0
 def predict(inputs, weights):
@@ -21,31 +22,77 @@ def accuracy(matrix, weights):
 	return total_correct/float(len(matrix))
 
 def perceptron(matrix, weights, max_iteration, l_rate):
-	for iteration in range(max_iteration):
-		current_accuracy = accuracy(matrix, weights)
+	w = weights.copy()
 
-		print("Accuracy at iteration %d: "%iteration, current_accuracy)
+	current_accuracy = accuracy(matrix, w)
+	print("Initial Accuracy: ", current_accuracy)
+
+	for iteration in range(max_iteration):
 
 		if current_accuracy == 1.0:
 			break
 
 		for i in range(len(matrix)):
-			prediction = predict(matrix[i][:-1],weights)
+			prediction = predict(matrix[i][:-1],w)
 			error = matrix[i][-1]-prediction
-			for j in range(len(weights)):
-				weights[j]=weights[j]+(l_rate*error*matrix[i][j])
+			for j in range(len(w)):
+				w[j]=w[j]+(l_rate*error*matrix[i][j])
 	
-	current_accuracy = accuracy(matrix, weights)
-	print("Final Accuracy: ", current_accuracy)
+		current_accuracy = accuracy(matrix, w)
+		print("Accuracy at iteration %d: "%(iteration+1), current_accuracy)
 
-	return weights
+	return w
+
+def pocket_perceptron(matrix, weights, max_iteration, l_rate):
+	w = weights.copy()
+
+	current_accuracy = accuracy(matrix, w)
+	print("Initial Accuracy: ", current_accuracy)
+	
+	w_pocket = weights.copy()
+
+	for iteration in range(max_iteration):
+		
+		if current_accuracy == 1.0:
+			break
+
+		for i in range(len(matrix)):
+			prediction = predict(matrix[i][:-1],w)
+			error = matrix[i][-1]-prediction
+			for j in range(len(w)):
+				w[j]=w[j]+(l_rate*error*matrix[i][j])
+		
+		current_accuracy = accuracy(matrix, w)
+		pocket_accuracy = accuracy(matrix, w_pocket)
+		
+		if current_accuracy > pocket_accuracy:
+			w_pocket = w.copy()
+			pocket_accuracy = current_accuracy
+
+		print("Accuracy of w_pocket at iteration %d: "%(iteration+1), pocket_accuracy)
+
+	return w_pocket
+
 
 
 def main():
-	rows = []
-	w = [0,0,0,0,0,0]
+	parser = argparse.ArgumentParser()
+	parser.add_argument('--version', 
+						choices=['naive', 'pocket'],
+						help="choose between naive or pocket version of perceptron",
+						required=True)
 
-	with open('Breast_cancer_data.csv', 'r') as csvfile:
+	parser.add_argument('--dataset',
+						help="select path of dataset as input",
+						default="./data/Breast_cancer_data.csv")
+
+	args = parser.parse_args()
+
+	rows = []
+
+	datafile = args.dataset
+
+	with open(datafile, 'r') as csvfile:
 		csvreader = csv.reader(csvfile, delimiter=',')
 		next(csvreader) #remove header
 		for row in csvreader:
@@ -54,8 +101,14 @@ def main():
 			row.insert(0, 1)
 			rows.append(row)
 
-	a = perceptron(rows, w, 16, 1.0)
-	print("Final Weights: ", a)
+	w = [0] * len(rows[0][:-1])
+
+	if args.version == "naive":
+		a = perceptron(rows, w, 16, 1.0)
+		print("Final Weights: ", a)
+	if args.version == "pocket":
+		a = pocket_perceptron(rows, w, 16, 1.0)
+		print("Final Weights: ", a)
 
 if __name__ == '__main__':
 	   main()
