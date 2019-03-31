@@ -14,6 +14,7 @@ def main():
 		for row in csvreader: 
 			for i in range(len(row)): 
 				row[i] = float(row[i])
+				row.insert(0, 1)
 			if row[-1] == 0:
 				del row[-1]
 				subset_0.append(row)

@@ -2,13 +2,16 @@ import numpy as np
 import csv
 import argparse
 
-#helper method for computing the condition that if the inner product is <= 0
+#The dot product of the weight and the input is the 
+#prediction of which label the input falls under
 def predict(inputs, weights):
-	threshold = 0.0
 	a = np.array(inputs)
 	b = np.array(weights)
-	total_activation = a.dot(b)
-	return 1.0 if total_activation >= threshold else 0.0
+	output = a.dot(b)
+	if output <= 0 :
+		return 0.0
+	else:
+		return 1.0
 
 #loops through all inputs to check for accuracy
 #if accuracy == 0, no missclassification and we can end the perceptron early
