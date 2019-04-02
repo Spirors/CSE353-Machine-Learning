@@ -101,7 +101,7 @@ def main():
 		for row in csvreader:
 			for i in range(len(row)):
 				row[i] = float(row[i])
-			row.insert(0, 1)
+			row.insert(0, 1.0)
 			rows.append(row)
 
 	w = [0] * len(rows[0][:-1])
