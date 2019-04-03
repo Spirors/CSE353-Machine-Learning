@@ -108,7 +108,7 @@ def main():
 	w1 = linear_regression(subset_1, y1)
 
 	prediction_vector =	binary_classification(dataset, w0, w1)
-	print(prediction_vector)
+	#print(prediction_vector)
 	performance = accuracy(dataset, prediction_vector)
 	print(performance)
 
