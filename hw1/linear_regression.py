@@ -47,9 +47,10 @@ def euclidean_distance(instance, weights):
 def binary_classification(inputs, weights0, weights1):
 	classified_vector = []
 	for i in range(len(inputs)):
-		instance = inputs[i][:-1]
+		instance = inputs[i][:-2]
 		d0 = euclidean_distance(instance, weights0)
 		d1 = euclidean_distance(instance, weights1)
+		#print("D0 = %.4f and D1 = %.4f"%(d0,d1))
 		if d0 < d1:
 			classified_vector.append(0)
 		else:
@@ -93,18 +94,21 @@ def main():
 			dataset.append(row.copy())
 			if row[-1] == 0.0:
 				del row[-1]
-				y0.append(row[1]) #we are using row[1] as out label vector
+				y0.append(row[-1]) #we are using last feature vector as out label vector
+				del row[-1]
 				subset_0.append(row)
 			else:
 				del row[-1]
-				y1.append(row[1]) #we are using row[1] as out label vector
+				y1.append(row[-1]) #we are using last feature vector as out label vector
+				del row[-1]
 				subset_1.append(row)
-
+	
 
 	w0 = linear_regression(subset_0, y0)
 	w1 = linear_regression(subset_1, y1)
 
 	prediction_vector =	binary_classification(dataset, w0, w1)
+	print(prediction_vector)
 	performance = accuracy(dataset, prediction_vector)
 	print(performance)
 
