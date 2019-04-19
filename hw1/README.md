@@ -1,4 +1,4 @@
-Coding portion of hw1 of CSE353 Spring 2019
+Hw1 of CSE353 Spring 2019
 
 Running the code:
 
