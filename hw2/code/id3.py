@@ -4,27 +4,27 @@ import math
 import pandas as pd
 import matplotlib.pyplot as plt
 
-#The Attribute class is the value of the node
-#The column_index is the index of the data to be matched
-#The values is an array of different states of an attribute 
-#(i.e. 1st, 2nd, 3rd in feature pclass)
-#If the attribute is continuous then values contains a threshold t at values[0]
-class Attribute:
-	def __init__(self, column_index, values):
-		self.column_index = column_index
-		self.values = values
-	
-	def is_continuous(self):
-		#Test for categorical or continuous variable
-		if isinstance(self.values[0], float):
-			return True
+class Test:
+	def __init__(self, column, value):
+		self.value = value
+
+	def match(self, instance):
+		val = instance[self.column]
+		if isinstance(val, float):
+			return val >= self.value
 		else:
-			return False			
+			return val == self.value
+	
 
 #This is the tree class
 class Node:
-	def __init__(self, attr):
-		self.attr = attr
+	def __init__(self, test):
+		self.test = test
+		self.children = []
+
+	def add_child(self, obj):
+		self.children.append(obj)
+
 
 #Function for spliting the data into training and test
 def split(data, ratio):
@@ -45,6 +45,7 @@ def average_age(data):
 			total += float(age)
 	return total/len(data)
 
+#Fill in empty space in feature Embarked
 def fill_embarked(data):
 	S = 0
 	C = 0
@@ -69,6 +70,7 @@ def fill_embarked(data):
 		if data[i][-1] == "":
 			data[i][-1] = fill
 
+#Return unique values of an attribute
 def unique(data, col):
 	unique = []
 	for row in range(len(data)):
@@ -76,6 +78,7 @@ def unique(data, col):
 			unique.append(data[row][col])
 	return unique
 
+#Helper function for getting unique for target array
 def labels(target):
 	label = []
 	for i in range(len(target)):
@@ -93,6 +96,7 @@ def labels(target):
 	cnt[-1] = len(target)
 	return label, cnt
 
+#Find entropy
 def entropy(array):
 	ent = 0
 	
@@ -103,25 +107,32 @@ def entropy(array):
 				ent += -1 * py * math.log(py, 2)
 	return ent
 
-def attribute_table(data, target, attribute):
+#Build a table for calculating conditional entropy
+def attribute_table(data, target, attribute_col, t):
 	label, count = labels(target)
 
-	col = attribute.column_index
+	col = attribute_col
 	n = len(data)
 
-	x_values = attribute.values
+	x_values = unique(data, col)
 	y_values = label
 
-	if attribute.is_continuous() == True:
+	if t is not None:
+		x_values = t
+		y_values = label
+
 		x_l = 2
 		y_l = len(y_values)
 	else:
+		x_values = unique(data, col)
+		y_values = label
+
 		x_l = len(x_values)
 		y_l = len(y_values)
 	
 	table = [[0 for col in range(y_l+1)] for row in range(x_l)]
 	
-	if attribute.is_continuous == False:
+	if t is None:
 		for i in range(x_l):
 			for j in range(y_l):
 				for row in range(n):
@@ -130,9 +141,9 @@ def attribute_table(data, target, attribute):
 	else:
 		for j in range(y_l):
 			for row in range(n):
-					if data[row][col] >= x_values[0] and target[row] == y_values[j]:
+					if data[row][col] >= x_values and target[row] == y_values[j]:
 						table[0][j] += 1
-					elif data[row][col] < x_values[0] and target[row] == y_values[j]:
+					elif data[row][col] < x_values and target[row] == y_values[j]:
 						table[1][j] += 1
 
 	
@@ -142,6 +153,7 @@ def attribute_table(data, target, attribute):
 	
 	return table
 
+#Find conditional entropy
 def conditional_entropy(table):
 	row = len(table)
 	col = len(table[0])
@@ -159,18 +171,20 @@ def conditional_entropy(table):
 
 	return ent
 
-def info_gain(data, target, attribute):
+#Find info gain
+def info_gain(data, target, attribute_col, t):
 	label, count = labels(target)
 	h_y = entropy(count)
-	table = attribute_table(data, target, attribute)
-	print(table)
+	table = attribute_table(data, target, attribute_col, t)
 	h_condition = conditional_entropy(table)
 
 	return h_y - h_condition
 
+#Return a column of a matrix in form of an array
 def column(matrix, col):
 	return [row[col] for row in matrix]
 
+#Find the best threshold with max info_gain
 def find_best_threshold(data, target, col):
 	feature = column(data, col)
 	feature.sort()
@@ -179,15 +193,66 @@ def find_best_threshold(data, target, col):
 	max_info = 0
 	for i in range(len(feature)-1):
 		t = feature[i] + ((feature[i+1] - feature[i])/2)
-		a = Attribute(col, [t])
-		info = info_gain(data, target, a)
-		print(t, info)
+		info = info_gain(data, target, col, t)
 		if info > max_info:
 			max_info = info
 			best_threshold = t
 	
 	return best_threshold, max_info
+
+def majority_label(label, cnt):
+	index = 0
+	maj = 0
+	for i in range(len(cnt)-1):
+		val = cnt[i]
+		if val > maj:
+			maj = val
+			index = i
+	return label[index]
+
+#The skeleton of building the tree, and the main program
+def id3_helper(data, target, remaining_atts):
+	label, cnt = labels(target)
+	majority = majority_label(label, cnt)
+
+	return id3(data, target, remaining_atts, label, cnt, majority)
+
+def id3(data, target, remaining_atts):
+	label, cnt = labels(target)
+
+	if len(label) == 1:
+		return
+	if not remaining_atts:
+		return
+	
+	ent_y = entropy(cnt)
+
+	max_gain = None
+	max_gain_attr = None
+
+	threshold = None
+
+	for i in range(len(remaining_atts)):
+		if isinstance(data[0][i], float):
+			t, info, attr = find_best_threshold(data, target, i)
+			
+			if max_gain is None or info > max_gain:
+				max_gain = info
+				max_gain_attr = attr
+				threshold = t
+		else:
+			info = info_gain(data, target, i, None)
 		
+			if max_gain is None or info > max_gain:
+				max_gain = info
+				max_gain_attr = attr
+	
+	if max_gain is None:
+		return
+	
+
+	return node
+
 def main():
 	parser = argparse.ArgumentParser()
 	parser.add_argument('--dataset', help="select path of dataset as input", default="./data/titanic.csv")
@@ -228,20 +293,10 @@ def main():
 	train_data, test_data = split(data, .6)
 	train_target, test_target = split(target, .6)
 	
-	d = [
-			[2.1],
-			[3.2],
-			[4.7],
-			[1.1],
-			[3.92],
-			[7.4]
-		]
-	t = [1,1,0,1,0,1]
 
-	age_t, age_if = find_best_threshold(d, t, 0)
-	print(age_t)
-	print(age_if)
-	
+	t, info = find_best_threshold(train_data, train_target, 2)
+
+	print(t, info)
 
 if __name__ == '__main__':
 	main()
