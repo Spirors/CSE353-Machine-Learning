@@ -3,29 +3,34 @@ import argparse
 import math
 import pandas as pd
 import matplotlib.pyplot as plt
+from copy import deepcopy
 
+#This is the tree class
 class Test:
-	def __init__(self, column, value):
+	def __init__(self, att_col, att_name, value):
+		self.att_col = att_col
+		self.att_name = att_name
 		self.value = value
 
 	def match(self, instance):
-		val = instance[self.column]
+		val = instance[self.att_col]
 		if isinstance(val, float):
 			return val >= self.value
 		else:
 			return val == self.value
-	
 
-#This is the tree class
 class Node:
-	def __init__(self, test):
+	def __init__(self, test, name, target, children):
 		self.test = test
-		self.children = []
+		self.name = name
+		self.label, self.cnt = labels(target)
+		self.children = children
 
-	def add_child(self, obj):
-		self.children.append(obj)
-
-
+class Leaf:
+	def __init__(self, value, cnt):
+		self.value = value
+		self.cnt = cnt
+	
 #Function for spliting the data into training and test
 def split(data, ratio):
 	splitindex = math.ceil(ratio*len(data));
@@ -76,6 +81,7 @@ def unique(data, col):
 	for row in range(len(data)):
 		if data[row][col] not in unique:
 			unique.append(data[row][col])
+	unique.sort()
 	return unique
 
 #Helper function for getting unique for target array
@@ -84,6 +90,7 @@ def labels(target):
 	for i in range(len(target)):
 		if target[i] not in label:
 			label.append(target[i])
+	label.sort()
 
 	n = len(label)
 	cnt = [0] * (n+1)
@@ -200,7 +207,7 @@ def find_best_threshold(data, target, col):
 	
 	return best_threshold, max_info
 
-def majority_label(label, cnt):
+def most_common_label(label, cnt):
 	index = 0
 	maj = 0
 	for i in range(len(cnt)-1):
@@ -210,48 +217,151 @@ def majority_label(label, cnt):
 			index = i
 	return label[index]
 
-#The skeleton of building the tree, and the main program
-def id3_helper(data, target, remaining_atts):
+def id3_helper(data, target, remaining_atts, max_depth):
 	label, cnt = labels(target)
-	majority = majority_label(label, cnt)
+	
+	d = deepcopy(data)
+	t = deepcopy(target)
+	rm = deepcopy(remaining_atts)
+	cols_arr = [0] * len(remaining_atts)
+	for i in range(len(remaining_atts)):
+		cols_arr[i] = i
 
-	return id3(data, target, remaining_atts, label, cnt, majority)
+	child = id3(d, t, rm, cols_arr, max_depth)
+	root = Node(None, "root", target, child)
 
-def id3(data, target, remaining_atts):
+	return root
+
+def id3(data, target, remaining_atts, cols_arr, max_depth, depth=0):
+	nodes = []
 	label, cnt = labels(target)
 
+	if depth == max_depth:
+		value = most_common_label(label, cnt)
+		nodes.append(Leaf(value, cnt[int(value)]))
+		return nodes
 	if len(label) == 1:
-		return
-	if not remaining_atts:
-		return
+		value = label[0]
+		nodes.append(Leaf(value, cnt[int(value)]))
+		return nodes
+	if len(cols_arr) == 0:
+		value = most_common_label(label, cnt)
+		nodes.append(Leaf(value, cnt[int(value)]))
+		return nodes
 	
 	ent_y = entropy(cnt)
 
 	max_gain = None
-	max_gain_attr = None
+	max_gain_att_col = None
 
 	threshold = None
 
-	for i in range(len(remaining_atts)):
-		if isinstance(data[0][i], float):
-			t, info, attr = find_best_threshold(data, target, i)
+	x = None
+
+	for i in range(len(cols_arr)):
+		if isinstance(data[0][cols_arr[i]], float):
+			t, info = find_best_threshold(data, target, cols_arr[i])
 			
 			if max_gain is None or info > max_gain:
 				max_gain = info
-				max_gain_attr = attr
+				max_gain_att_col = cols_arr[i]
 				threshold = t
+				x = i
 		else:
-			info = info_gain(data, target, i, None)
+			info = info_gain(data, target, cols_arr[i], None)
 		
 			if max_gain is None or info > max_gain:
 				max_gain = info
-				max_gain_attr = attr
+				max_gain_att_col = cols_arr[i]
+				x = i
 	
 	if max_gain is None:
+		value = most_common_label(label, cnt)
+		nodes.append(Leaf(value, cnt[int(value)]))
+		return nodes
+
+	if isinstance(data[0][max_gain_att_col], float):
+		values = [threshold]
+	else:
+		values = unique(data, max_gain_att_col)
+	
+	
+	att_name = remaining_atts[max_gain_att_col]
+	del cols_arr[x]
+	cols = deepcopy(cols_arr)
+
+	for i in range(len(values)):
+		test = Test(max_gain_att_col, att_name, values[i])
+		if values[0] == threshold:
+			greater_than_data = []
+			greater_than_target = []
+			less_than_data = []
+			less_than_target = []
+			for j in range(len(data)):
+				if test.match(data[j]) == True:
+					greater_than_data.append(data[j])
+					greater_than_target.append(target[j])
+				else:
+					less_than_data.append(data[j])
+					less_than_target.append(target[j])
+			if len(less_than_target) == 0:
+				value = most_common_label(label, cnt)
+				nodes.append(Leaf(value, cnt[int(value)]))
+			else:
+				l_child = id3(less_than_data, less_than_target, 
+										remaining_atts, cols, max_depth, depth+1)
+				l_node = Node(test, test.att_name+"<"+str(values[0]), 
+										less_than_target, l_child)
+				nodes.append(l_node)	
+			if len(greater_than_target) == 0:
+				value = most_common_label(label, cnt)
+				nodes.append(Leaf(value, cnt[int(value)]))
+			else:
+				g_child = id3(greater_than_data, greater_than_target, 
+										remaining_atts, cols, max_depth, depth+1)
+				g_node = Node(test, test.att_name+">="+str(values[0]), 
+										greater_than_target, g_child)
+				nodes.append(g_node)
+		else:
+			subset_data = []
+			subset_target = []
+
+			for j in range(len(data)):
+				if test.match(data[j]) == True:
+					subset_data.append(data[j])
+					subset_target.append(target[j])
+			
+			if len(subset_target) == 0:
+				value = most_common_label(label, cnt)
+				nodes.append(Leaf(value, cnt[int(value)]))
+			else:
+				child = id3(subset_data, subset_target, 
+										remaining_atts, cols, max_depth, depth+1)
+				node = Node(test, test.att_name+"="+values[i], subset_target, child)
+				nodes.append(node)
+
+	return nodes
+
+def print_tree(root, spacing=""):
+	if isinstance(root, Leaf):
+		print(spacing + "Predict", root.value, root.cnt)
 		return
 	
+	print(spacing + root.name, root.label, root.cnt)
 
-	return node
+	for i in range(len(root.children)):
+		print(spacing + ' --->: ')
+		print_tree(root.children[i], spacing + "  ")
+
+def accuracy(root):
+	if isinstance(root, Leaf):
+		return root.cnt
+	
+	s = 0
+	for i in range(len(root.children)):
+		s += accuracy(root.children[i])
+	
+	return s
 
 def main():
 	parser = argparse.ArgumentParser()
@@ -292,11 +402,11 @@ def main():
 	#spliting the data and the target
 	train_data, test_data = split(data, .6)
 	train_target, test_target = split(target, .6)
-	
 
-	t, info = find_best_threshold(train_data, train_target, 2)
-
-	print(t, info)
+	root = id3_helper(train_data, train_target, header, 1)
+	print_tree(root)
+	a = accuracy(root)
+	print(a/len(train_target))
 
 if __name__ == '__main__':
 	main()
