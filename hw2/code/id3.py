@@ -4,6 +4,7 @@ import math
 import pandas as pd
 import matplotlib.pyplot as plt
 from copy import deepcopy
+import numpy as np
 
 #This is the tree class
 class Test:
@@ -19,6 +20,7 @@ class Test:
 		else:
 			return val == self.value
 
+#Use to recursively build the tree
 class Node:
 	def __init__(self, test, name, target, children):
 		self.test = test
@@ -26,11 +28,12 @@ class Node:
 		self.label, self.cnt = labels(target)
 		self.children = children
 
+#Leaf node
 class Leaf:
 	def __init__(self, value, cnt):
 		self.value = value
 		self.cnt = cnt
-	
+
 #Function for spliting the data into training and test
 def split(data, ratio):
 	splitindex = math.ceil(ratio*len(data));
@@ -70,7 +73,7 @@ def fill_embarked(data):
 		fill = "C"
 	else:
 		fill = "Q"
-	
+
 	for i in range(len(data)):
 		if data[i][-1] == "":
 			data[i][-1] = fill
@@ -106,7 +109,7 @@ def labels(target):
 #Find entropy
 def entropy(array):
 	ent = 0
-	
+
 	for i in range(len(array)-1):
 		if array[-1] > 0:
 			py = array[i] / array[-1]
@@ -136,9 +139,9 @@ def attribute_table(data, target, attribute_col, t):
 
 		x_l = len(x_values)
 		y_l = len(y_values)
-	
+
 	table = [[0 for col in range(y_l+1)] for row in range(x_l)]
-	
+
 	if t is None:
 		for i in range(x_l):
 			for j in range(y_l):
@@ -153,11 +156,11 @@ def attribute_table(data, target, attribute_col, t):
 					elif data[row][col] < x_values and target[row] == y_values[j]:
 						table[1][j] += 1
 
-	
+
 	for i in range(x_l):
 		for j in range(y_l):
 			table[i][-1] += table[i][j]
-	
+
 	return table
 
 #Find conditional entropy
@@ -195,7 +198,7 @@ def column(matrix, col):
 def find_best_threshold(data, target, col):
 	feature = column(data, col)
 	feature.sort()
-	
+
 	best_threshold = 0
 	max_info = 0
 	for i in range(len(feature)-1):
@@ -204,9 +207,10 @@ def find_best_threshold(data, target, col):
 		if info > max_info:
 			max_info = info
 			best_threshold = t
-	
+
 	return best_threshold, max_info
 
+#for finding the majority target value in dataset
 def most_common_label(label, cnt):
 	index = 0
 	maj = 0
@@ -217,9 +221,10 @@ def most_common_label(label, cnt):
 			index = i
 	return label[index]
 
+#id3_helper generate the root node
 def id3_helper(data, target, remaining_atts, max_depth):
 	label, cnt = labels(target)
-	
+
 	d = deepcopy(data)
 	t = deepcopy(target)
 	rm = deepcopy(remaining_atts)
@@ -232,6 +237,13 @@ def id3_helper(data, target, remaining_atts, max_depth):
 
 	return root
 
+#The tree building algorithm
+#data is the train_data
+#target is the train_target
+#remaining_atts is just a list of attribute or in this case the header
+#cols_arr this hold the position of each attribute with respect to the dataset
+#max_depth how big is the tree allow to be
+#depth a counter use to track the level of the tree
 def id3(data, target, remaining_atts, cols_arr, max_depth, depth=0):
 	nodes = []
 	label, cnt = labels(target)
@@ -248,7 +260,7 @@ def id3(data, target, remaining_atts, cols_arr, max_depth, depth=0):
 		value = most_common_label(label, cnt)
 		nodes.append(Leaf(value, cnt[int(value)]))
 		return nodes
-	
+
 	ent_y = entropy(cnt)
 
 	max_gain = None
@@ -261,7 +273,7 @@ def id3(data, target, remaining_atts, cols_arr, max_depth, depth=0):
 	for i in range(len(cols_arr)):
 		if isinstance(data[0][cols_arr[i]], float):
 			t, info = find_best_threshold(data, target, cols_arr[i])
-			
+
 			if max_gain is None or info > max_gain:
 				max_gain = info
 				max_gain_att_col = cols_arr[i]
@@ -269,12 +281,12 @@ def id3(data, target, remaining_atts, cols_arr, max_depth, depth=0):
 				x = i
 		else:
 			info = info_gain(data, target, cols_arr[i], None)
-		
+
 			if max_gain is None or info > max_gain:
 				max_gain = info
 				max_gain_att_col = cols_arr[i]
 				x = i
-	
+
 	if max_gain is None:
 		value = most_common_label(label, cnt)
 		nodes.append(Leaf(value, cnt[int(value)]))
@@ -284,8 +296,8 @@ def id3(data, target, remaining_atts, cols_arr, max_depth, depth=0):
 		values = [threshold]
 	else:
 		values = unique(data, max_gain_att_col)
-	
-	
+
+
 	att_name = remaining_atts[max_gain_att_col]
 	del cols_arr[x]
 	cols = deepcopy(cols_arr)
@@ -308,18 +320,18 @@ def id3(data, target, remaining_atts, cols_arr, max_depth, depth=0):
 				value = most_common_label(label, cnt)
 				nodes.append(Leaf(value, cnt[int(value)]))
 			else:
-				l_child = id3(less_than_data, less_than_target, 
+				l_child = id3(less_than_data, less_than_target,
 										remaining_atts, cols, max_depth, depth+1)
-				l_node = Node(test, test.att_name+"<"+str(values[0]), 
+				l_node = Node(test, test.att_name+"<"+str(values[0]),
 										less_than_target, l_child)
-				nodes.append(l_node)	
+				nodes.append(l_node)
 			if len(greater_than_target) == 0:
 				value = most_common_label(label, cnt)
 				nodes.append(Leaf(value, cnt[int(value)]))
 			else:
-				g_child = id3(greater_than_data, greater_than_target, 
+				g_child = id3(greater_than_data, greater_than_target,
 										remaining_atts, cols, max_depth, depth+1)
-				g_node = Node(test, test.att_name+">="+str(values[0]), 
+				g_node = Node(test, test.att_name+">="+str(values[0]),
 										greater_than_target, g_child)
 				nodes.append(g_node)
 		else:
@@ -330,38 +342,71 @@ def id3(data, target, remaining_atts, cols_arr, max_depth, depth=0):
 				if test.match(data[j]) == True:
 					subset_data.append(data[j])
 					subset_target.append(target[j])
-			
+
 			if len(subset_target) == 0:
 				value = most_common_label(label, cnt)
 				nodes.append(Leaf(value, cnt[int(value)]))
 			else:
-				child = id3(subset_data, subset_target, 
+				child = id3(subset_data, subset_target,
 										remaining_atts, cols, max_depth, depth+1)
 				node = Node(test, test.att_name+"="+values[i], subset_target, child)
 				nodes.append(node)
 
 	return nodes
 
+#Function for printing the tree
 def print_tree(root, spacing=""):
 	if isinstance(root, Leaf):
 		print(spacing + "Predict", root.value, root.cnt)
 		return
-	
+
 	print(spacing + root.name, root.label, root.cnt)
 
 	for i in range(len(root.children)):
 		print(spacing + ' --->: ')
 		print_tree(root.children[i], spacing + "  ")
 
-def accuracy(root):
+#Function to calculate accuracy of training data
+def accuracy_cnt(root):
 	if isinstance(root, Leaf):
 		return root.cnt
-	
+
 	s = 0
 	for i in range(len(root.children)):
-		s += accuracy(root.children[i])
-	
+		s += accuracy_cnt(root.children[i])
+
 	return s
+
+#Returns a list of predictions
+def classify_helper(root, data):
+	pred_t = []
+	for i in range(len(data)):
+		pred_t.append(classify(root.children, data[i]))
+	return pred_t
+
+#classify the data point with the tree, excluding the root node
+def classify(nodes, instance):
+	if isinstance(nodes[0], Leaf):
+		return nodes[0].value
+	else:
+		if isinstance(nodes[0].test.value, float):
+			if nodes[0].test.match(instance) == False:
+				pred = classify(nodes[0].children, instance)
+			else:
+				pred = classify(nodes[1].children, instance)
+		else:
+			for i in range(len(nodes)):
+				if nodes[i].test.match(instance) == True:
+					pred = classify(nodes[i].children, instance)
+	return pred
+
+def test_accuracy(pred_t, actual_t):
+	cnt = 0
+	for i in range(len(pred_t)):
+		if pred_t[i] == actual_t[i]:
+			cnt += 1
+	accuracy = cnt/len(pred_t)
+	return accuracy
 
 def main():
 	parser = argparse.ArgumentParser()
@@ -370,7 +415,7 @@ def main():
 	args = parser.parse_args()
 
 	datafile = args.dataset
-	
+
 	data = []
 	target = []
 
@@ -403,10 +448,29 @@ def main():
 	train_data, test_data = split(data, .6)
 	train_target, test_target = split(target, .6)
 
-	root = id3_helper(train_data, train_target, header, 1)
-	print_tree(root)
-	a = accuracy(root)
-	print(a/len(train_target))
+	#building tree, finding accuracy, ploting
+	depths = []
+	accuracies_training = []
+	accuracies_testing = []
+	for i in range(1, len(header)+1): #root is depth = 0
+		root = id3_helper(train_data, train_target, header, i)
+		accuracy_training = accuracy_cnt(root)/len(train_target)
+		pred_test = classify_helper(root, test_data)
+		accuracy_testing = test_accuracy(pred_test, test_target)
+		depths.append(i)
+		accuracies_training.append(accuracy_training)
+		accuracies_testing.append(accuracy_testing)
+
+
+	line1 = plt.plot(depths, accuracies_training, label='Training Data')
+	line2 = plt.plot(depths, accuracies_testing, label='Test Data')
+	plt.legend()
+	plt.ylabel("Accuracy")
+	plt.xlabel("Depth")
+	plt.title("Accuracy Plot")
+	plt.axis([1, 7, 0.6, 1.0])
+	plt.yticks(np.arange(0.6, 1.0, step=0.05))
+	plt.show()
 
 if __name__ == '__main__':
 	main()
