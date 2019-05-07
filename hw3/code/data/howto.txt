@@ -1,0 +1,6 @@
+./svm-train -s 0 -t 0 -v 5 ~/repo/CSE353-Machine-Learning/hw3/code/data/test
+
+./svm-train -s 0 -t 0 -nu 0.452954 ~/repo/CSE353-Machine-Learning/hw3/code/data/test ~/repo/CSE353-Machine-Learning/hw3/code/data/Model/test.model
+
+./svm-predict ~/repo/CSE353-Machine-Learning/hw3/code/data/test ~/repo/CSE353-Machine-Learning/hw3/code/data/Model/test.model ~/repo/CSE353-Machine-Learning/hw3/code/data/Result/result 
+
